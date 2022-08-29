@@ -1,19 +1,20 @@
 # evil-maid
-an evil maid attack on an ubuntu laptop for research purposes.
+In this project I want to launch an [evil maid attack](https://en.wikipedia.org/wiki/Evil_maid_attack) on an ubuntu laptop for fun.
+This is no new approach and there are many defensive measures, but I want to try it anyway.
 
 # Let's get started #
 Goal of this project is to attack an ubuntu system, where full disk encryption (FDE) is activated.
 When FDE is activated, without the keyphrase it is practically impossible to access the encrypted data.
 Therefore we must persuade the victim to tell us the password.
-Since some victims are not willing enough to do that (and torture is not a nice way to change that), we try another approach by tricking the victim to give us the password.
-!(/img/torture.jpg)
+Since some victims are not willing enough to do that (and torture is not a nice way to change that), we try another approach by tricking the victim to give us the password.  
+![a man being tortured](/img/torture.jpg)
 
 The computer cannot encrypt the whole hard drive, since then it would be unable to ask the user for the keyphrase.
 Because of this a small portion with the boot partition is unencrypted.
 When the computer is booting, the user is asked to enter the keyphrase required to continue the boot process.
-In this project, we try to manipulate the part of the code handling the keyphrase, so a file is created on the hard drive, containing the entered keyphrase.
+In this project, we try to manipulate the part of the code handling the keyphrase, so a file is created on the hard drive, containing the entered keyphrase.  
 
-!(/img/letsago.jpg)
+![super mario shouting Let's a go](/img/letsago.jpg)
 
 # Setup #  
 For the final target, probably my ubuntu laptop with FDE will be used.
@@ -21,10 +22,13 @@ Since I do not want to lower the security of my laptop significally, I really sh
 For developing I rather prefer working with a VM, since it is much easier to debug and I can just reset the status when I screw up.
 
 This creates a small problem: I only have a linux laptop with a small screen (15"), but I would rather enjoy working on my two big 24" screens with all the nice equipment.
-The computer mounted to the big screens is running on Windows 11. Of course I can create a linux VM and start developing inside of it, but for testing I need a nested VM inside the linux VM and this stinks.
-!(/img/inception.jpg)
+The computer mounted to the big screens is running on Windows 11. Of course I can create a linux VM and start developing inside of it, but for testing I need a nested VM inside the linux VM and this stinks.  
+![drake does not like the movie inception](/img/inception.jpg)  
 
-But luckily, newer Windows versions feature the brilliant Windows-Subsystem for Linux (WSL). Eventhough I did not except it to work, for the moment I can start a qemu VM with ubuntu and attach GDB as a debugger. Wohooo!  
+But luckily, newer Windows versions feature the brilliant Windows-Subsystem for Linux (WSL). 
+Eventhough I did not except it to work, for the moment I can start a qemu VM with ubuntu and attach GDB as a debugger. 
+Wohooo!  
+
 
 So with this achivement, the development is completely done on my Windows machine, using WSL, qemu and GDB.
 Since I can reuse code parts of my master thesis, the controller is written in GOlang. As far as possible I will try to avoid writing bare ASM, but C. For compiling I will use gcc and go.
@@ -39,7 +43,7 @@ GNU gdb (Ubuntu 9.1-0ubuntu1) 9.1
 ## Setting up the VM ##
 For testing purposes an ubuntu VM is setup in qemu.
 I use qemu because I know it from my master thesis, it is lightweight and it runs on WSL.
-Just for protocoll, this is the used qemu version: QEMU emulator version 4.2.0 (Debian 1:4.2-3ubuntu6)
+Just for protocoll, this is the used qemu version: QEMU emulator version 4.2.0 (Debian 1:4.2-3ubuntu6)  
 I setup the VM using a simple web [tutorial](https://graspingtech.com/ubuntu-desktop-18.04-virtual-machine-macos-qemu/), but instead of 18.04, I use [Ubuntu 22.04.1 LTS (Jammy Jellyfish)](https://releases.ubuntu.com/22.04/) since it is the newest version currently available. I hope this doesn't backfire :wink:. Like in the tutorial I use 10GB of space, I hope this is enough.  
 I don't want to heavily increase the size of this repo by commiting the VM, so it is excluded and can be downloaded [here](https://here-the-author-must-include-a-link.com).
 

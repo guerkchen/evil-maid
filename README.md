@@ -47,4 +47,10 @@ Just for protocoll, this is the used qemu version: QEMU emulator version 4.2.0 (
 I setup the VM using a simple web [tutorial](https://graspingtech.com/ubuntu-desktop-18.04-virtual-machine-macos-qemu/), but instead of 18.04, I use [Ubuntu 22.04.1 LTS (Jammy Jellyfish)](https://releases.ubuntu.com/22.04/) since it is the newest version currently available. I hope this doesn't backfire :wink:. Like in the tutorial I use 10GB of space, I hope this is enough.  
 I don't want to heavily increase the size of this repo by commiting the VM, so it is excluded and can be downloaded [here](https://here-the-author-must-include-a-link.com).
 
+When you setup your own Ubuntu VM I highly recommend to overlook the parameters used when starting QEMU. Since I had overlooked to switch some resources and every click took multiple seconds to parse.  
+Anyway, I choose the german keyboard design, since I am from Germany :beer: and of course - since the VM is very slow - I choose the minimal installation, no updates during setup and of course no optional third party software.  
+When choosing the installation type, I choose LVM and "Encrypt the new Ubuntu installation for security" (since this is the whole purpose of this project).  
+Since the keyphrase is about to get leaked anyway, I can write it here. The keyphrase is *evil-maid-2022*.  
+I choose not to use a recovery key, I think I can remeber the password, since it is documented in the Readme.
+
 # Research # 

@@ -47,11 +47,19 @@ Just for protocoll, this is the used qemu version: QEMU emulator version 4.2.0 (
 I setup the VM using a simple web [tutorial](https://graspingtech.com/ubuntu-desktop-18.04-virtual-machine-macos-qemu/), but instead of 18.04, I use [Ubuntu 22.04.1 LTS (Jammy Jellyfish)](https://releases.ubuntu.com/22.04/) since it is the newest version currently available. I hope this doesn't backfire :wink:. Like in the tutorial I use 10GB of space, I hope this is enough.  
 I don't want to heavily increase the size of this repo by commiting the VM, so it is excluded and can be downloaded [here](https://here-the-author-must-include-a-link.com).
 
-When you setup your own Ubuntu VM I highly recommend to overlook the parameters used when starting QEMU. Since I had overlooked to switch some resources and every click took multiple seconds to parse.  
-![sloth VM](/img/sloth.jpg)
-Anyway, I choose the german keyboard design, since I am from Germany :beer: and of course - since the VM is very slow - I choose the minimal installation, no updates during setup and of course no optional third party software.  
+I highly recommend to take your time and get the launch paramters for qemu right. Otherwise it might be possible, you find yourself spending a few hours trying to fix non existing problems. Oh and you really should use KVM! I think here is the right moment to highlight the benefits of a VM with KVM. Only an idiot would try to install Ubuntu on a VM without KVM.
+![sloth VM](/img/sloth.jpg)  
+Anyway, I choose the german keyboard design, since I am from Germany :beer:, and the minimal installation, no updates during setup and of course no optional third party software. The VM should be as thin as possible.  
 When choosing the installation type, I choose LVM and "Encrypt the new Ubuntu installation for security" (since this is the whole purpose of this project).  
 Since the keyphrase is about to get leaked anyway, I can write it here. The keyphrase is *evil-maid-2022*.  
 I choose not to use a recovery key, I think I can remeber the password, since it is documented in the Readme.
 
+## Getting access to the qcow2-Iamge content ##
+For attacking the unencrypted boot-section of the Image, it is really helpful to be able to mount the partitions of the qcow2 file.
+To my misfortune, this is easier said then done. Mounting a qcow2 Image on WSL is sadly not possible by using [nbd](https://gist.github.com/shamil/62935d9b456a6f9877b5).  
+After some research I found a promising [Stack-Overflow Thread](https://stackoverflow.com/questions/53874221/mount-disk-image-on-wsl-windows-subsystem-for-linux), where mounting an ISO image is described.
+Converting qcow2 to an iso is quite a challenge, I found [this manual](https://docs.openstack.org/image-guide/convert-images.html), where converting a qcow2 image to an raw image and [this page](https://www.maketecheasier.com/convert-img-to-iso-linux/), where multiple ways to convert a raw image to an iso file are described. Using ccd2iso did not work on my machine, but iat is running since 4 hours and it might finish in a few days ...
+
+
 # Research # 
+

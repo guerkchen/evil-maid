@@ -60,6 +60,40 @@ To my misfortune, this is easier said then done. Mounting a qcow2 Image on WSL i
 After some research I found a promising [Stack-Overflow Thread](https://stackoverflow.com/questions/53874221/mount-disk-image-on-wsl-windows-subsystem-for-linux), where mounting an ISO image is described.
 Converting qcow2 to an iso is quite a challenge, I found [this manual](https://docs.openstack.org/image-guide/convert-images.html), where converting a qcow2 image to an raw image and [this page](https://www.maketecheasier.com/convert-img-to-iso-linux/), where multiple ways to convert a raw image to an iso file are described. Using ccd2iso did not work on my machine, but iat is running since 4 hours and it might finish in a few days ...
 
+I must be able to analyze the content of the image, to continue. Of course, I can export the required files out of while the qemu machine is running, but I want to have a look at the encrypted image right now. So I did the only logic thing and setup a VM in VMWare, where I share the vm folder and mount the qcow2 there. There are probably far better solutions, but now I am able to mount the qcow image using [this tutorial](https://unix.stackexchange.com/a/598265) and edit it from inside my VMWare Linux VM.
 
 # Research # 
 
+## Analyze the unencrypted root partition ##
+
+```console
+matze@matze-virtual-machine:/media/matze/79c7119f-3fb9-4133-958a-baccc110e8f6$ ls -la
+total 251408
+drwxr-xr-x  5 root root      4096 Aug 30 18:35 .
+drwxr-x---+ 3 root root      4096 Sep  2 18:39 ..
+-rw-r--r--  1 root root    261694 Jul 12 10:51 config-5.15.0-43-generic
+-rw-r--r--  1 root root    261879 Aug  4 19:16 config-5.15.0-46-generic
+drwxrwxr-x  2 root root      4096 Aug 30 18:25 efi
+drwxr-xr-x  6 root root      4096 Aug 31 16:59 grub
+lrwxrwxrwx  1 root root        28 Aug 30 18:35 initrd.img -> initrd.img-5.15.0-46-generic
+-rw-r--r--  1 root root 109929157 Aug 30 18:35 initrd.img-5.15.0-43-generic
+-rw-r--r--  1 root root 111253499 Aug 30 18:35 initrd.img-5.15.0-46-generic
+lrwxrwxrwx  1 root root        28 Aug 30 18:25 initrd.img.old -> initrd.img-5.15.0-43-generic
+drwx------  2 root root     16384 Aug 30 18:24 lost+found
+-rw-r--r--  1 root root    182800 Feb  6  2022 memtest86+.bin
+-rw-r--r--  1 root root    184476 Feb  6  2022 memtest86+.elf
+-rw-r--r--  1 root root    184980 Feb  6  2022 memtest86+_multiboot.bin
+-rw-------  1 root root   6250707 Jul 12 10:51 System.map-5.15.0-43-generic
+-rw-------  1 root root   6252303 Aug  4 19:16 System.map-5.15.0-46-generic
+lrwxrwxrwx  1 root root        25 Aug 30 18:35 vmlinuz -> vmlinuz-5.15.0-46-generic
+-rw-r--r--  1 root root  11090688 Aug  9 14:00 vmlinuz-5.15.0-43-generic
+-rw-------  1 root root  11531520 Aug  4 19:34 vmlinuz-5.15.0-46-generic
+lrwxrwxrwx  1 root root        25 Aug 30 18:35 vmlinuz.old -> vmlinuz-5.15.0-43-generic
+```
+
+Eventough I tried my best not to install any updates, somehow there are an old image anyway (5.13.0-43-genric). But we are only taking a look at newest and currently installed kernel 5.15.0-46-generic.
+The important parts of the folder are described on [this website](https://wiki.debian.org/FilesystemHierarchyStandard/Directory/boot).  
+*config-5.15.0-46-generic* contains boring configuration options the kernel binary was compiled with.  
+*System.map-5.15.0-46-generic* contains symbol names and addresses of the linux kernel binary. It is probably helpful to reverse enginner the functions responsible for handling the keyphrase.  
+*initrd.img-5.15.0-46-generic* is a small, temporary, root filesystem used solely for boot strapping your system. This could be the binary responsible for handling the keyphrase. If that is the case, we probably cannot use the System.map for reverse engineering, since it not contains the function addresses of the initrd. Futhermore we have to take a deep dive into the limited functionality available during the startup process.  
+*vmlinuz-5.15.0-46-generic* is the compiled kernel binary. I hope the keyphrase handling is done in here, since then we would be able to execute system calls and some other nice stuff.

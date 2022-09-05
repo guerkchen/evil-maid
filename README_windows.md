@@ -25,22 +25,25 @@ This creates a small problem: I only have a linux laptop with a small screen (15
 The computer mounted to the big screens is running on Windows 11. Of course I can create a linux VM and start developing inside of it, but for testing I need a nested VM inside the linux VM and this stinks.  
 ![drake does not like the movie inception](/img/inception.jpg)  
 
-I made a noval approach working with WSL, but I surrendered when mounting the qcow2 image, since this is not an easy task on an Windows machine using WSL. So, fortunetly a few days ago I switched the M.2 SSD in one of my laptops to a bigger one, so I got an unused 128 GB M.2 SSD on my hands. I installed it in my desktop computer and setup dual boot, so now I am working on a workhorse with linux.
-Wohoooo.
+But luckily, newer Windows versions feature the brilliant Windows-Subsystem for Linux (WSL). 
+Eventhough I did not except it to work, for the moment I can start a qemu VM with ubuntu and attach GDB as a debugger. 
+Wohooo!  
 
+
+So with this achivement, the development is completely done on my Windows machine, using WSL, qemu and GDB.
 Since I can reuse code parts of my master thesis, the controller is written in GOlang. As far as possible I will try to avoid writing bare ASM, but C. For compiling I will use gcc and go.
 
 ```console
 matze@Matze-PC:~/evil-maid/vm$ uname -a
-Linux matze-linux 5.15.0-47-generic #51-Ubuntu SMP Thu Aug 11 07:51:15 UTC 2022 x86_64 x86_64 x86_64 GNU/Linux
+Linux Matze-PC 5.10.16.3-microsoft-standard-WSL2 #1 SMP Fri Apr 2 22:23:49 UTC 2021 x86_64 x86_64 x86_64 GNU/Linux
 matze@Matze-PC:~/evil-maid/vm$ gdb --version
-GNU gdb (Ubuntu 12.0.90-0ubuntu1) 12.0.90
+GNU gdb (Ubuntu 9.1-0ubuntu1) 9.1
 ```
 
 ## Setting up the VM ##
 For testing purposes an ubuntu VM is setup in qemu.
-I use qemu because I know it from my master thesis, it is lightweight and it runs on WSL (eventhough I don't need that future anymore, since I work on an ubuntu machine).
-Just for protocoll, this is the used qemu version: QEMU emulator version 6.2.0 (Debian 1:6.2+dfsg-2ubuntu6.3)  
+I use qemu because I know it from my master thesis, it is lightweight and it runs on WSL.
+Just for protocoll, this is the used qemu version: QEMU emulator version 4.2.0 (Debian 1:4.2-3ubuntu6)  
 I setup the VM using a simple web [tutorial](https://graspingtech.com/ubuntu-desktop-18.04-virtual-machine-macos-qemu/), but instead of 18.04, I use [Ubuntu 22.04.1 LTS (Jammy Jellyfish)](https://releases.ubuntu.com/22.04/) since it is the newest version currently available. I hope this doesn't backfire :wink:. Like in the tutorial I use 10GB of space, I hope this is enough.  
 I don't want to heavily increase the size of this repo by commiting the VM, so it is excluded and can be downloaded [here](https://here-the-author-must-include-a-link.com).
 
@@ -53,16 +56,19 @@ I choose not to use a recovery key, I think I can remeber the password, since it
 
 ## Getting access to the qcow2-Iamge content ##
 For attacking the unencrypted boot-section of the Image, it is really helpful to be able to mount the partitions of the qcow2 file.
-Mounting the qcow2 image on ubuntu is pretty easy, using [this tutorial](https://gist.github.com/shamil/62935d9b456a6f9877b5).
-There is just a small catch: I cannot start the VM while the image is mounted due to the requirement of write access.
-So I wrote to simple scripts, one for mounting the boot partition and one for unmounting the partition and now I am fine.
-Man, this is so much easier then over WSL.
+To my misfortune, this is easier said then done. Mounting a qcow2 Image on WSL is sadly not possible by using [nbd](https://gist.github.com/shamil/62935d9b456a6f9877b5).  
+After some research I found a promising [Stack-Overflow Thread](https://stackoverflow.com/questions/53874221/mount-disk-image-on-wsl-windows-subsystem-for-linux), where mounting an ISO image is described.
+Converting qcow2 to an iso is quite a challenge, I found [this manual](https://docs.openstack.org/image-guide/convert-images.html), where converting a qcow2 image to an raw image and [this page](https://www.maketecheasier.com/convert-img-to-iso-linux/), where multiple ways to convert a raw image to an iso file are described. Using ccd2iso did not work on my machine, but iat is running since 4 hours and it might finish in a few days ...
+
+I must be able to analyze the content of the image, to continue. Of course, I can export the required files out of while the qemu machine is running, but I want to have a look at the encrypted image right now. So I did the only logic thing and setup a VM in VMWare, where I share the vm folder and mount the qcow2 there. There are probably far better solutions, but now I am able to mount the qcow image using [this tutorial](https://unix.stackexchange.com/a/598265) and edit it from inside my VMWare Linux VM.
 
 # Research # 
 
 ## Analyze the unencrypted root partition ##
 
 ```console
+matze@matze-virtual-machine:/media/matze/79c7119f-3fb9-4133-958a-baccc110e8f6$ ls -la
+total 251408
 drwxr-xr-x  5 root root      4096 Aug 30 18:35 .
 drwxr-x---+ 3 root root      4096 Sep  2 18:39 ..
 -rw-r--r--  1 root root    261694 Jul 12 10:51 config-5.15.0-43-generic
@@ -91,9 +97,3 @@ The important parts of the folder are described on [this website](https://wiki.d
 - *System.map-5.15.0-46-generic* contains symbol names and addresses of the linux kernel binary. It is probably helpful to reverse enginner the functions responsible for handling the keyphrase.  
 - *initrd.img-5.15.0-46-generic* is a small, temporary, root filesystem used solely for boot strapping your system. This could be the binary responsible for handling the keyphrase. If that is the case, we probably cannot use the System.map for reverse engineering, since it not contains the function addresses of the initrd. Futhermore we have to take a deep dive into the limited functionality available during the startup process.  
 - *vmlinuz-5.15.0-46-generic* is the compiled kernel binary. I hope the keyphrase handling is done in here, since then we would be able to execute system calls and some other nice stuff.
-
-## Find the entry point ##
-
-There are several imaginable ways to find the code section, where the keyphrase is handeled and it is hard to predict the easiest one.
-So I decided to try it by booting up the VM and waiting for the keyphrase enter screen to appear. Then I attach GDB which pauses the VM and prints out the current position of the RIP (Instruction pointer). The address of the RIP in the VM is 0xffffffff81daa6bb :sunglasses:.  
-So I stop the VM, mount the boot drive and use the System.map to map the address to the corresponding method. The address is located in the function native_safe_halt :disappointed:. I don't even need to investigate this function any futher. That is the idle loop, cpu cores chilling in, when they have nothing else to do. Looking back, it is no big suprise, since the cpu core really does not have any job  except waiting for the user input. But it is actually not that big of a deal, since we can investigate, where the native_safe_halt function is called from, by looking at the return address on the stack.

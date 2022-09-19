@@ -4,4 +4,5 @@
 	-smp 1 \
 	-m 4G \
 	--enable-kvm \
+	-serial stdio \
 	-cpu host

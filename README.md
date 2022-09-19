@@ -51,6 +51,11 @@ When choosing the installation type, I choose LVM and "Encrypt the new Ubuntu in
 Since the keyphrase is about to get leaked anyway, I can write it here. The keyphrase is *evil-maid-2022*.  
 I choose not to use a recovery key, I think I can remeber the password, since it is documented in the Readme.
 
+```console
+matze@matze-Standard-PC-i440FX-PIIX-1996:~$ uname -a  
+Linux matze-Standard-PC-i440FX-PIIX-1996 5.15.0-46-generic #49-Ubuntu SMP Thu Aug 4 19.03.25 UTC 2022 x86_64 x86_64 GNU/Linux  
+```
+
 ## Getting access to the qcow2-Iamge content ##
 For attacking the unencrypted boot-section of the Image, it is really helpful to be able to mount the partitions of the qcow2 file.
 Mounting the qcow2 image on ubuntu is pretty easy, using [this tutorial](https://gist.github.com/shamil/62935d9b456a6f9877b5).
@@ -94,6 +99,72 @@ The important parts of the folder are described on [this website](https://wiki.d
 
 ## Find the entry point ##
 
-There are several imaginable ways to find the code section, where the keyphrase is handeled and it is hard to predict the easiest one.
-So I decided to try it by booting up the VM and waiting for the keyphrase enter screen to appear. Then I attach GDB which pauses the VM and prints out the current position of the RIP (Instruction pointer). The address of the RIP in the VM is 0xffffffff81daa6bb :sunglasses:.  
-So I stop the VM, mount the boot drive and use the System.map to map the address to the corresponding method. The address is located in the function native_safe_halt :disappointed:. I don't even need to investigate this function any futher. That is the idle loop, cpu cores chilling in, when they have nothing else to do. Looking back, it is no big suprise, since the cpu core really does not have any job  except waiting for the user input. But it is actually not that big of a deal, since we can investigate, where the native_safe_halt function is called from, by looking at the return address on the stack.
+There are several imaginable ways to find the code section, where the keyphrase is handeled and it is hard to predict the easiest one.  
+### First try: Break during password input window is shown ###
+So I decided to try it by booting up the VM and waiting for the keyphrase enter screen to appear. Then I attach GDB which pauses the VM and prints out the current position of the RIP (Instruction pointer). For this to work flawless, [*kaslr* must be disabled in grub on the guest machine](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/hibernation-disable-kaslr.html). The address of the RIP in the VM is 0xffffffff81daa6bb :sunglasses:.  
+So I stop the VM, mount the boot drive and use the System.map to map the address to the corresponding method. The address is located in the function native_safe_halt :disappointed:. I don't even need to investigate this function any futher. That is the idle loop, cpu cores chilling in, when they have nothing else to do. Looking back, it is no big suprise, since the cpu core really does not have any job  except waiting for the user input. But it is actually not that big of a deal, since we can investigate, where the native_safe_halt function is called from, by using the backtrace command.
+For the backtrace command it is very useful to import the symbol table into gdb, so not only the return adresses are shown, but the function names aswell. I found [this tutorial](https://www.ibm.com/docs/en/linux-on-systems?topic=linuxonibm/liacf/oprofkernelsymrhel.html).
+
+```console
+(gdb) target remote localhost:9000
+Remote debugging using localhost:9000
+Warnung: No executable has been specified and target does not support
+determining executable automatically.  Try using the "file" command.
+0xffffffff81daa6bb in ?? ()
+(gdb) symbol-file /usr/lib/debug/boot/vmlinux-5.15.0-46-generic 
+Reading symbols from /usr/lib/debug/boot/vmlinux-5.15.0-46-generic...
+(gdb) bt
+#0  0xffffffff81daa6bb in native_safe_halt ()
+    at /build/linux-22xc9F/linux-5.15.0/arch/x86/include/asm/irqflags.h:52
+#1  0xffffffff81daa5be in arch_safe_halt ()
+    at /build/linux-22xc9F/linux-5.15.0/arch/x86/include/asm/paravirt.h:167
+#2  default_idle () at /build/linux-22xc9F/linux-5.15.0/arch/x86/kernel/process.c:732
+#3  0xffffffff8104b922 in arch_cpu_idle ()
+    at /build/linux-22xc9F/linux-5.15.0/arch/x86/kernel/process.c:724
+#4  0xffffffff81daa7de in default_idle_call ()
+    at /build/linux-22xc9F/linux-5.15.0/kernel/sched/idle.c:112
+#5  0xffffffff81108719 in cpuidle_idle_call ()
+    at /build/linux-22xc9F/linux-5.15.0/kernel/sched/idle.c:194
+#6  0xffffffff81108803 in do_idle () at /build/linux-22xc9F/linux-5.15.0/kernel/sched/idle.c:306
+#7  0xffffffff81108a30 in cpu_startup_entry (state=state@entry=CPUHP_ONLINE)
+    at /build/linux-22xc9F/linux-5.15.0/kernel/sched/idle.c:403
+#8  0xffffffff81d9c8d3 in rest_init () at /build/linux-22xc9F/linux-5.15.0/init/main.c:735
+#9  0xffffffff83298781 in arch_call_rest_init () at /build/linux-22xc9F/linux-5.15.0/init/main.c:888
+#10 0xffffffff83298c7e in start_kernel () at /build/linux-22xc9F/linux-5.15.0/init/main.c:1146
+#11 0xffffffff8329762d in x86_64_start_reservations (
+    real_mode_data=real_mode_data@entry=0x8b000 <error: Cannot access memory at address 0x8b000>)
+    at /build/linux-22xc9F/linux-5.15.0/arch/x86/kernel/head64.c:525
+#12 0xffffffff83297717 in x86_64_start_kernel (
+    real_mode_data=0x8b000 <error: Cannot access memory at address 0x8b000>)
+    at /build/linux-22xc9F/linux-5.15.0/arch/x86/kernel/head64.c:506
+#13 0xffffffff81000107 in secondary_startup_64 ()
+    at /build/linux-22xc9F/linux-5.15.0/arch/x86/kernel/head_64.S:283
+#14 0x0000000000000000 in ?? ()
+```
+
+This backtrace shows us a sleeping cpu, which is kind of obvious, since the kernel is waiting for an interrupt aka a keypress. Since I do not want to parse the interrupt handler, I have another idea.
+
+### Second try: Break at syscall ###  
+After trying to break during the cpu core is idling, the next obvious step is to break during a function necessary for handling the keyphrase. Here the "write" syscall is quite useful, since it is used quite often. So I print the syscall table and use [this](https://chromium.googlesource.com/chromiumos/docs/+/master/constants/syscalls.md#x86_64-64_bit) webpage to determine the offset of the *write* function -> The offset is **2** and since we have 64-bit addresses, it is the second address. 
+
+```console
+(gdb) x/255x (unsigned long*) sys_call_table 
+0xffffffff82200300 <sys_call_table>:	0x8138d420	0xffffffff	0x8138d550	0xffffffff
+0xffffffff82200310 <sys_call_table+16>:	0x81389010	0xffffffff	0x81386b70	0xffffffff
+0xffffffff82200320 <sys_call_table+32>:	0x81393740	0xffffffff	0x81393ef0	0xffffffff
+0xffffffff82200330 <sys_call_table+48>:	0x81393980	0xffffffff	0x813a98d0	0xffffffff
+0xffffffff82200340 <sys_call_table+64>:	0x81389c90	0xffffffff	0x81044c50	0xffffffff
+0xffffffff82200350 <sys_call_table+80>:	0x81307f10	0xffffffff	0x81303670	0xffffffff
+0xffffffff82200360 <sys_call_table+96>:	0x813049e0	0xffffffff	0x810d62d0	0xffffffff
+```
+
+So the address of the syscall *write* is 0xffffffff8138d550. In the System.map the function is called *__x64_sys_write*.
+While breaking at this address and analyzing the results, I realised two things:  
+First: It would have been much more efficient to just break at the *entry_SYSCALL_64*, which handles an user-level syscall.
+Second: The keyphrase handling is probably done in user-space. So modifing the kernel would work, but it is probablly much easier, to just manipulate a programm used in user space.
+Which brings up the nexdt question: Where on the /boot partition are programm stored? I have not found any until now.
+
+### Third try: Read the dmesg output ###
+An good approach would be trying to understand the boot process of linux (eventhough it's kind of boring).  
+But here we are, reading the dmesg output. To get easy access to the dmesg output we first have to convince the vm to print the output in the console during the startup sequenze. To make this happen, we not only need to modify our VM-Startscript, but make changes to the grub of the VM aswell.
+The second step is achived by modifing the /etc/default/grub and add "console=ttyS0,57600n8 ignore_loglevel" to the "GRUB_CMDLINE_LINUX_DEFAULT paramters" and "serial --speed=57600 --unit=0 --word=8 --parity=no --stop=1" to the "GRUB_SERIAL_COMMAND" paramters.

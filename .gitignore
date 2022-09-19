@@ -1,3 +1,5 @@
 /vm/ubuntu-desktop-22.04.1.qcow2
 /vm/debian.img
 /vm/boot
+/vm/ubuntu-desktop-22.04.1.qcow2.tar.gz
+/vm/boot_copy
